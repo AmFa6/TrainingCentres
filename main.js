@@ -26,7 +26,6 @@ function convertMultiPolygonToPolygons(geoJson) {
             
       if (name === 'North Somerset' || name === 'South Gloucestershire' || 
           (feature.properties.name && feature.properties.name.length > 0)) {
-        // Keep only the largest polygon for named areas (including WestLink zones)
         features.push({
           type: 'Feature',
           geometry: {
@@ -133,8 +132,6 @@ fetch('https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/LSOA21
   })
 
 const layers = {};
-const AmenitiesYear = document.getElementById("yearAmenitiesDropdown");
-const AmenitiesMode = document.getElementById("modeAmenitiesDropdown");
 const AmenitiesPurpose = document.querySelectorAll('.checkbox-label input[type="checkbox"]');
 const AmenitiesOpacity = document.getElementById("opacityFieldAmenitiesDropdown");
 const AmenitiesOutline = document.getElementById("outlineFieldAmenitiesDropdown");
@@ -161,29 +158,25 @@ const filterTypeDropdown = document.getElementById('filterTypeDropdown');
 const filterValueDropdown = document.getElementById('filterValueDropdown');
 
 Promise.all([
-  fetch('https://AmFa6.github.io/TAF_test/grid-socioeco-lep_tracid_1of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TAF_test/grid-socioeco-lep_tracid_2of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TAF_test/grid-socioeco-lep_tracid_3of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TAF_test/grid-socioeco-lep_tracid_4of4.geojson').then(response => response.json())
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_1of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_2of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_3of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_4of4.geojson').then(response => response.json())
 ])
 .then(dataArray => {
-  // Combine all features from the 4 files into a single GeoJSON object
   const combinedData = {
     type: 'FeatureCollection',
     features: []
   };
   
-  // Add features from each file to the combined data
   dataArray.forEach(data => {
     if (data.features && Array.isArray(data.features)) {
       combinedData.features = combinedData.features.concat(data.features);
     }
   });
     
-  // Assign to the grid variable
   grid = combinedData;
   
-  // Update summary statistics if initial load is complete
   if (initialLoadComplete) {
     updateSummaryStatistics(grid.features);
   }
@@ -208,13 +201,12 @@ fetch('https://AmFa6.github.io/TAF_test/GrowthZones.geojson')
     }).addTo(map);
   })
 
-AmenitiesFiles.forEach(file => {
-  fetch(file.path)
-    .then(response => response.json())
-    .then(amenityLayer => {
-      amenityLayers[file.type] = amenityLayer;
-      drawSelectedAmenities([]);
-    });
+fetch(trainingCentersFile)
+.then(response => response.json())
+.then(data => {
+  trainingCentersData = data;
+  amenityLayers['trainingCenters'] = data;
+  drawSelectedTrainingCentres();
 });
 
 fetch('https://AmFa6.github.io/TAF_test/lines.geojson')
@@ -313,6 +305,7 @@ fetch('https://AmFa6.github.io/TAF_test/simplified_network.geojson')
 AmenitiesOpacity.value = "None";
 AmenitiesOutline.value = "None";
 
+let trainingCentersData = null;
 let opacityAmenitiesOrder = 'low-to-high';
 let outlineAmenitiesOrder = 'low-to-high';
 let isInverseAmenitiesOpacity = false;
@@ -343,14 +336,12 @@ let isCalculatingStats = false;
 let isUpdatingVisibility = false;
 let isUpdatingFilters = false;
 let isUpdatingFilterValues = false;
-let currentEditingUserLayer = null;
 let activeShapeMode = null; 
 let activeActionMode = null;
 let originalLayerState = null;
 let hasUnsavedChanges = false;
 let currentFeatureAttributes = {};
 let pendingFeature = null;
-let currentUserLayerId = null;
 let defaultAttributes = { "Name": "" };
 let previousFilterSelections = {
   LA: null,
@@ -363,12 +354,6 @@ let previousFilterSelections = {
 initializeSliders(AmenitiesOpacityRange);
 initializeSliders(AmenitiesOutlineRange);
 
-AmenitiesYear.addEventListener("change", () => {
-  updateAmenitiesCatchmentLayer();
-});
-AmenitiesMode.addEventListener("change", () => {
-  updateAmenitiesCatchmentLayer();
-});
 AmenitiesPurpose.forEach(checkbox => {
   checkbox.addEventListener("change", () => {
     if (!checkbox.checked && selectingFromMap) {
@@ -484,7 +469,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             otherContent.style.display = "none";
           }
           
-          if (otherHeader.textContent.includes("Journey Time Catchments - Amenities") && AmenitiesCatchmentLayer) {
+          if (otherHeader.textContent.includes("Journey Time Catchments - Training Centres") && AmenitiesCatchmentLayer) {
             lastAmenitiesState = {
               selectingFromMap,
               selectedAmenitiesFromMap,
@@ -499,7 +484,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     requestAnimationFrame(() => {
       if (isOpen) {
-        if (header.textContent.includes("Journey Time Catchments - Amenities")) {
+        if (header.textContent.includes("Journey Time Catchments - Training Centres")) {
           if (lastAmenitiesState.selectingFromMap) {
             selectingFromMap = lastAmenitiesState.selectingFromMap;
             selectedAmenitiesFromMap = [...lastAmenitiesState.selectedAmenitiesFromMap];
@@ -523,7 +508,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
           updateFilterValues();
         });
       } else {
-        if (header.textContent.includes("Journey Time Catchments - Amenities") && AmenitiesCatchmentLayer) {
+        if (header.textContent.includes("Journey Time Catchments - Training Centres") && AmenitiesCatchmentLayer) {
           lastAmenitiesState = {
             selectingFromMap,
             selectedAmenitiesFromMap,
@@ -531,7 +516,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
           };
           map.removeLayer(AmenitiesCatchmentLayer);
           AmenitiesCatchmentLayer = null;
-          drawSelectedAmenities([]);
+          drawSelectedTrainingCentres([]);
         }
         
         requestAnimationFrame(() => {
@@ -583,30 +568,66 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
   }
 
-  const amenitiesDropdown = document.getElementById('amenitiesDropdown');
-  const amenitiesCheckboxesContainer = document.getElementById('amenitiesCheckboxesContainer');
-  const amenitiesCheckboxes = amenitiesCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
+  document.addEventListener('DOMContentLoaded', function() {
+    const yearDropdown = document.getElementById('yearDropdown');
+    const yearContainer = document.getElementById('yearContainer');
+    const yearRadios = yearContainer.querySelectorAll('input[type="radio"]');
+    const subjectDropdown = document.getElementById('subjectDropdown');
+    const subjectCheckboxesContainer = document.getElementById('subjectCheckboxesContainer');
+    const subjectCheckboxes = subjectCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
+  
+    const aimLevelDropdown = document.getElementById('aimlevelDropdown');
+    const aimLevelCheckboxesContainer = document.getElementById('aimlevelCheckboxesContainer');
+    const aimLevelCheckboxes = aimLevelCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
+    
+    yearDropdown.addEventListener('click', () => {
+      yearContainer.classList.toggle('show');
+    });
+    yearRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        updateYearDropdownLabel();
+        drawSelectedTrainingCenters();
+        updateAmenitiesCatchmentLayer();
+      });
+    });
 
-  amenitiesDropdown.addEventListener('click', () => {
-    amenitiesCheckboxesContainer.classList.toggle('show');
-  });
-
-  amenitiesCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', updateAmenitiesDropdownLabel);
-  });
-
-  updateAmenitiesDropdownLabel();
-
-  amenitiesCheckboxesContainer.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-
-  window.addEventListener('click', (event) => {
-    if (!event.target.matches('#amenitiesDropdown')) {
-      if (amenitiesCheckboxesContainer.classList.contains('show')) {
-        amenitiesCheckboxesContainer.classList.remove('show');
+    subjectDropdown.addEventListener('click', () => {
+      subjectCheckboxesContainer.classList.toggle('show');
+    });
+    subjectCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        updateSubjectDropdownLabel();
+        drawSelectedTrainingCenters();
+        updateAmenitiesCatchmentLayer();
+      });
+    });
+    
+    aimLevelDropdown.addEventListener('click', () => {
+      aimLevelCheckboxesContainer.classList.toggle('show');
+    });
+    aimLevelCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        updateAimLevelDropdownLabel();
+        drawSelectedTrainingCenters();
+        updateAmenitiesCatchmentLayer();
+      });
+    });
+    
+    updateYearDropdownLabel();
+    updateSubjectDropdownLabel();
+    updateAimLevelDropdownLabel();
+    
+    window.addEventListener('click', (event) => {
+      if (!event.target.matches('#subjectDropdown')) {
+        subjectCheckboxesContainer.classList.remove('show');
       }
-    }
+      if (!event.target.matches('#aimlevelDropdown')) {
+        aimLevelCheckboxesContainer.classList.remove('show');
+      }
+      if (!event.target.matches('#yearDropdown')) {
+        yearContainer.classList.remove('show');
+      }
+    });
   });
 
   document.querySelectorAll('.legend-checkbox').forEach(checkbox => {
@@ -767,60 +788,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
   initialLoadComplete = true;
 
-  const fileInput = document.getElementById('fileUpload');
-  const fileNameDisplay = document.getElementById('fileNameDisplay');
-  const uploadButton = document.getElementById('uploadButton');
-  
-  fileInput.addEventListener('change', function() {
-    if (this.files.length > 0) {
-      fileNameDisplay.textContent = this.files[0].name;
-      uploadButton.disabled = false;
-    } else {
-      fileNameDisplay.textContent = '';
-      uploadButton.disabled = true;
-    }
-  });
-  
-  uploadButton.addEventListener('click', function() {
-    const file = fileInput.files[0];
-    if (!file) return;
-    
-    const fileExtension = file.name.split('.').pop().toLowerCase();
-    
-    if (fileExtension === 'geojson' || fileExtension === 'json') {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const layerData = JSON.parse(e.target.result);
-          addUserLayer(layerData, file.name);
-        } catch (error) {
-          alert('Error processing file: ' + error.message);
-        }
-      };
-      reader.readAsText(file);
-    } else if (fileExtension === 'kml') {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const kml = new DOMParser().parseFromString(e.target.result, 'text/xml');
-          const layerData = toGeoJSON.kml(kml);
-          addUserLayer(layerData, file.name);
-        } catch (error) {
-          alert('Error processing file: ' + error.message);
-        }
-      };
-      reader.readAsText(file);
-    }
-    
-    fileInput.value = '';
-    fileNameDisplay.textContent = '';
-    uploadButton.disabled = true;
-  });
-
-  initializeFileUpload();
-
   function setupMapPanes() {
-    // Remove existing custom panes if they exist
     const existingPanes = document.querySelectorAll('.leaflet-pane[style*="z-index"]');
     existingPanes.forEach(pane => {
       if (pane.className.includes('custom-pane')) {
@@ -828,14 +796,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
       }
     });
     
-    map.createPane('polygonLayers').style.zIndex = 300;    // gridCells, scores, catchment
-    map.createPane('boundaryLayers').style.zIndex = 400;   // Admin boundaries
-    map.createPane('roadLayers').style.zIndex = 500;       // Road network
-    map.createPane('busLayers').style.zIndex = 600;        // Bus lines and stops
-    map.createPane('userLayers').style.zIndex = 700;       // User-uploaded layers
+    map.createPane('polygonLayers').style.zIndex = 300;
+    map.createPane('boundaryLayers').style.zIndex = 400;
+    map.createPane('roadLayers').style.zIndex = 500;
+    map.createPane('busLayers').style.zIndex = 600;
   }
   
-  // Call this function during initialization
   setupMapPanes();
 });
 
@@ -847,9 +813,9 @@ map.on('zoomend', () => {
     wasAboveZoomThreshold = isAboveZoomThreshold;
     
     if (AmenitiesCatchmentLayer) {
-      drawSelectedAmenities(selectedAmenitiesAmenities);
+      drawSelectedTrainingCentres(selectedAmenitiesAmenities);
     } else {
-      drawSelectedAmenities([]);
+      drawSelectedTrainingCentres([]);
     }
   }
 });
@@ -1261,36 +1227,20 @@ function formatValue(value, step) {
   }
 }
 
-function isClassVisible(value, selectedYear) {
+function isClassVisible(value) {
   const legendCheckboxes = document.querySelectorAll('.legend-checkbox');
   for (const checkbox of legendCheckboxes) {
     const range = checkbox.getAttribute('data-range');
     const isChecked = checkbox.checked;
 
-    if (selectedYear.includes('-')) {
-      if (range.includes('<=') && !range.includes('>') && value <= parseFloat(range.split('<=')[1]) / 100 && !isChecked) {
+    if (range.includes('>') && range.includes('<=') && value > parseFloat(range.split('>')[1].split('<=')[0]) && value <= parseFloat(range.split('<=')[1]) && !isChecked) {
+      return false;
+    } else if (range.includes('>') && !range.includes('<=') && value > parseFloat(range.split('>')[1]) && !isChecked) {
+      return false;
+    } else if (range.includes('-')) {
+      const [min, max] = range.split('-').map(parseFloat);
+      if (value >= min && value <= max && !isChecked) {
         return false;
-      } else if (range.includes('>=') && !range.includes('<') && value >= parseFloat(range.split('>=')[1]) / 100 && !isChecked) {
-        return false;
-      } else if (range.includes('>') && range.includes('<=') && value > parseFloat(range.split('>')[1]) / 100 && value <= parseFloat(range.split('<=')[1]) / 100 && !isChecked) {
-        return false;
-      } else if (range.includes('>=') && range.includes('<') && value >= parseFloat(range.split('>=')[1]) / 100 && value < parseFloat(range.split('<')[1]) / 100 && !isChecked) {
-        return false;
-      } else if (range.includes('>') && range.includes('<') && value > parseFloat(range.split('>')[1]) / 100 && value < parseFloat(range.split('<')[1]) / 100 && !isChecked) {
-        return false;
-      } else if (range === '= 0' && value === 0 && !isChecked) {
-        return false;
-      }
-    } else {
-      if (range.includes('>') && range.includes('<=') && value > parseFloat(range.split('>')[1].split('<=')[0]) && value <= parseFloat(range.split('<=')[1]) && !isChecked) {
-        return false;
-      } else if (range.includes('>') && !range.includes('<=') && value > parseFloat(range.split('>')[1]) && !isChecked) {
-        return false;
-      } else if (range.includes('-')) {
-        const [min, max] = range.split('-').map(parseFloat);
-        if (value >= min && value <= max && !isChecked) {
-          return false;
-        }
       }
     }
   }
@@ -1301,11 +1251,11 @@ function updateFeatureVisibility() {
   if (isUpdatingVisibility) return;
   isUpdatingVisibility = true;
 
-  const updateLayerVisibility = (layer, getValue, selectedYear, attribute) => {
+  const updateLayerVisibility = (layer, getValue, attribute) => {
     layer.eachLayer(layer => {
       const feature = layer.feature;
       const value = getValue(feature);
-      const isVisible = isClassVisible(value, selectedYear);
+      const isVisible = isClassVisible(value);
 
       if (layer.options._originalStyling === undefined) {
         layer.options._originalStyling = {
@@ -1325,9 +1275,8 @@ function updateFeatureVisibility() {
     });
   };
 
-  const selectedYear = AmenitiesYear.value;
   if (AmenitiesCatchmentLayer) {
-    updateLayerVisibility(AmenitiesCatchmentLayer, feature => gridTimeMap[feature.properties.COREID], selectedYear, 'time');
+    updateLayerVisibility(AmenitiesCatchmentLayer, feature => gridTimeMap[feature.properties.COREID], 'time');
   }
   
   isUpdatingVisibility = false;
@@ -1335,7 +1284,6 @@ function updateFeatureVisibility() {
 
 function updateLegend() {
   // console.log('Updating legend...');
-  const selectedYear = AmenitiesYear.value;
   const legendContent = document.getElementById("legend-content");
   
   const dataLayerCategory = document.getElementById('data-layer-category');
@@ -1421,56 +1369,6 @@ function updateLegend() {
   if (!wasCollapsed && (AmenitiesCatchmentLayer)) {
     dataLayerCategory.classList.remove('legend-category-collapsed');
   }
-}
-
-function getAmenityPopupContent(amenityType, properties) {
-  // console.log('Getting amenity popup content...');
-  let amenityName = 'Unknown';
-  let amenityTypeDisplay = 'Unknown';
-  let amenityId = properties.COREID || '';
-  
-  if (amenityType === 'PriSch') {
-    amenityTypeDisplay = 'Primary School';
-    amenityName = properties.Establis_1 || properties.Name || 'Unknown';
-  } else if (amenityType === 'SecSch') {
-    amenityTypeDisplay = 'Secondary School';
-    amenityName = properties.Establis_1 || properties.Name || 'Unknown';
-  } else if (amenityType === 'FurEd') {
-    amenityTypeDisplay = 'Further Education';
-    amenityName = properties.Establis_1 || properties.Name || 'Unknown';
-  } else if (amenityType === 'Em500') {
-    amenityTypeDisplay = 'Employment (500+ employees)';
-    amenityName = properties.LSOA11CD && properties.LSOA11NM ? 
-                 `${properties.LSOA11CD}, ${properties.LSOA11NM}` : 
-                 properties.Name || 'Unknown';
-  } else if (amenityType === 'Em5000') {
-    amenityTypeDisplay = 'Employment (5000+ employees)';
-    amenityName = properties.LSOA11CD && properties.LSOA11NM ? 
-                 `${properties.LSOA11CD}, ${properties.LSOA11NM}` : 
-                 properties.Name || 'Unknown';
-  } else if (amenityType === 'StrEmp') {
-    amenityTypeDisplay = 'Strategic Employment';
-    amenityName = properties.NAME || properties.Name || 'Unknown';
-  } else if (amenityType === 'CitCtr') {
-    amenityTypeDisplay = 'City Centre';
-    amenityName = properties.District || properties.Name || 'Unknown';
-  } else if (amenityType === 'MajCtr') {
-    amenityTypeDisplay = 'Major Centre';
-    amenityName = properties.Name || 'Unknown';
-  } else if (amenityType === 'DisCtr') {
-    amenityTypeDisplay = 'District Centre';
-    amenityName = properties.SITE_NAME || properties.Name || 'Unknown';
-  } else if (amenityType === 'GP') {
-    amenityTypeDisplay = 'General Practice';
-    amenityName = properties.WECAplu_14 || properties.Name || 'Unknown';
-  } else if (amenityType === 'Hos') {
-    amenityTypeDisplay = 'Hospital';
-    amenityName = properties.Name || 'Unknown';
-  }
-  
-  const showCatchmentButton = `<br><button class="show-catchment-btn" data-amenity-type="${amenityType}" data-amenity-id="${amenityId}">Show Journey Time Catchment</button>`;
-  
-  return `<strong>Amenity:</strong> ${amenityName} (${amenityTypeDisplay})${showCatchmentButton}`;
 }
 
 function findNearbyInfrastructure(latlng, maxPixelDistance = 10) {
@@ -1789,54 +1687,54 @@ function showInfrastructurePopup(latlng, nearbyFeatures) {
   updatePopupContent();
 }
 
-function getAmenityTypeDisplayName(amenityType) {
-  // console.log('Getting amenity type display name...');
-  switch (amenityType) {
-    case 'PriSch': return 'Primary School';
-    case 'SecSch': return 'Secondary School';
-    case 'FurEd': return 'Further Education';
-    case 'Em500': return 'Employment (500+)';
-    case 'Em5000': return 'Employment (5000+)';
-    case 'StrEmp': return 'Strategic Employment';
-    case 'CitCtr': return 'City Centre';
-    case 'MajCtr': return 'Major Centre';
-    case 'DisCtr': return 'District Centre';
-    case 'GP': return 'General Practice';
-    case 'Hos': return 'Hospital';
-    default: return amenityType;
+function updateYearDropdownLabel() {
+  const yearDropdown = document.getElementById('yearDropdown');
+  const selectedYear = document.querySelector('input[name="academic-year"]:checked');
+  
+  if (selectedYear) {
+    const yearValue = selectedYear.value;
+    const startYear = '20' + yearValue.substring(0, 2);
+    const endYear = '20' + yearValue.substring(2, 4);
+    yearDropdown.textContent = `${startYear}/${endYear}`;
+  } else {
+    yearDropdown.textContent = '2024/25';
+    const defaultYear = document.querySelector('input[name="academic-year"][value="2425"]');
+    if (defaultYear) defaultYear.checked = true;
   }
 }
 
-function updateAmenitiesDropdownLabel() {
-  // console.log('Updating amenities dropdown label...');
-  const amenitiesDropdown = document.getElementById('amenitiesDropdown');
-  if (!amenitiesDropdown) return;
+function updateSubjectDropdownLabel() {
+  const subjectDropdown = document.getElementById('subjectDropdown');
+  const subjectCheckboxes = document.getElementById('subjectCheckboxesContainer').querySelectorAll('input[type="checkbox"]');
+  const selectedCheckboxes = Array.from(subjectCheckboxes).filter(checkbox => checkbox.checked);
   
-  if (selectingFromMap) {
-    const amenityType = selectedAmenitiesAmenities[0];
-    const typeLabel = getAmenityTypeDisplayName(amenityType);
-    amenitiesDropdown.textContent = `${typeLabel} (ID: ${selectedAmenitiesFromMap.join(',')})`;
+  if (selectedCheckboxes.length === 0) {
+    subjectDropdown.textContent = '\u00A0';
+  } else if (selectedCheckboxes.length === 1) {
+    const nextSibling = selectedCheckboxes[0].nextElementSibling;
+    subjectDropdown.textContent = nextSibling ? nextSibling.textContent : selectedCheckboxes[0].value;
   } else {
-    const amenitiesCheckboxesContainer = document.getElementById('amenitiesCheckboxesContainer');
-    if (!amenitiesCheckboxesContainer) return;
-    
-    const amenitiesCheckboxes = amenitiesCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
-    const selectedCheckboxes = Array.from(amenitiesCheckboxes).filter(checkbox => checkbox.checked);
-    const selectedCount = selectedCheckboxes.length;
+    subjectDropdown.textContent = 'Multiple Subjects';
+  }
+}
+
+function updateAimLevelDropdownLabel() {
+  const aimLevelDropdown = document.getElementById('aimlevelDropdown');
+  const aimLevelCheckboxes = document.getElementById('aimlevelCheckboxesContainer').querySelectorAll('input[type="checkbox"]');
+  const selectedCheckboxes = Array.from(aimLevelCheckboxes).filter(checkbox => checkbox.checked);
   
-    if (selectedCount === 0) {
-      amenitiesDropdown.textContent = '\u00A0';
-    } else if (selectedCount === 1) {
-      const nextSibling = selectedCheckboxes[0].nextElementSibling;
-      amenitiesDropdown.textContent = nextSibling ? nextSibling.textContent : selectedCheckboxes[0].value;
-    } else {
-      amenitiesDropdown.textContent = 'Multiple Selection';
-    }
+  if (selectedCheckboxes.length === 0) {
+    aimLevelDropdown.textContent = '\u00A0';
+  } else if (selectedCheckboxes.length === 1) {
+    const nextSibling = selectedCheckboxes[0].nextElementSibling;
+    aimLevelDropdown.textContent = nextSibling ? nextSibling.textContent : selectedCheckboxes[0].value;
+  } else {
+    aimLevelDropdown.textContent = 'Multiple Levels';
   }
 }
 
 function updateLayerStyles() {
-  if (AmenitiesCatchmentLayer && isPanelOpen("Journey Time Catchments - Amenities")) {
+  if (AmenitiesCatchmentLayer && isPanelOpen("Journey Time Catchments - Training Centres")) {
     applyAmenitiesCatchmentLayerStyling();
   }
 }
@@ -1849,7 +1747,7 @@ function showAmenityCatchment(amenityType, amenityId) {
     header.classList.add("collapsed");
     header.nextElementSibling.style.display = "none";
     
-    if (header.textContent.includes("Journey Time Catchments - Amenities") && AmenitiesCatchmentLayer) {
+    if (header.textContent.includes("Journey Time Catchments - Training Centres") && AmenitiesCatchmentLayer) {
       map.removeLayer(AmenitiesCatchmentLayer);
       AmenitiesCatchmentLayer = null;
     }
@@ -1860,19 +1758,11 @@ function showAmenityCatchment(amenityType, amenityId) {
   selectedAmenitiesAmenities = [amenityType];
   
   const amenitiesHeader = Array.from(panelHeaders).find(header => 
-    header.textContent.includes("Journey Time Catchments - Amenities"));
+    header.textContent.includes("Journey Time Catchments - Training Centres"));
   
   if (amenitiesHeader) {
     amenitiesHeader.classList.remove("collapsed");
     amenitiesHeader.nextElementSibling.style.display = "block";
-    
-    if (!AmenitiesYear.value) {
-      AmenitiesYear.value = AmenitiesYear.options[0].value;
-    }
-    
-    if (!AmenitiesMode.value) {
-      AmenitiesMode.value = AmenitiesMode.options[0].value;
-    }
     
     AmenitiesPurpose.forEach(checkbox => {
       checkbox.checked = false;
@@ -1893,124 +1783,176 @@ function showAmenityCatchment(amenityType, amenityId) {
   }
 }
 
-function drawSelectedAmenities(amenities) {
-  // console.log('drawSelectedAmenities called');
-  const amenitiesCheckbox = document.getElementById('amenitiesCheckbox');
-  amenitiesLayerGroup.clearLayers();
-
-  if (!amenitiesCheckbox) {
+function drawSelectedTrainingCenters() {
+  const selectedSubjects = Array.from(
+    document.querySelectorAll('#subjectCheckboxesContainer input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+  
+  const selectedAimLevels = Array.from(
+    document.querySelectorAll('#aimlevelCheckboxesContainer input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+  
+  const selectedYearElem = document.querySelector('input[name="academic-year"]:checked');
+  const currentYear = selectedYearElem ? selectedYearElem.value : '2425';
+  
+  if (selectedSubjects.length === 0 || selectedAimLevels.length === 0) {
+    amenitiesLayerGroup.clearLayers();
     return;
   }
 
-  if (amenities.length === 0) {
-    selectingFromMap = false;
-    selectedAmenitiesFromMap = [];
-  }
-
-  const amenitiesToDraw = amenities.length === 0 ? Object.keys(amenityLayers) : amenities;
-
-  const currentZoom = map.getZoom();
-  const isAboveZoomThreshold = currentZoom >= 14;
-
-  amenitiesToDraw.forEach(amenity => {
-    const amenityLayer = amenityLayers[amenity];
-    if (amenityLayer) {
-      const layer = L.geoJSON(amenityLayer, {
-        pointToLayer: (feature, latlng) => {
-          const icon = isAboveZoomThreshold ? 
-            amenityIcons[amenity] : 
-            L.divIcon({ className: 'fa-icon', html: '<div class="dot"></div>', iconSize: [5, 5], iconAnchor: [5, 5] });
-          const marker = L.marker(latlng, { icon: icon });
-          marker._amenityType = amenity;
-          marker._amenityId = feature.properties.COREID || '';
-          
-          const isSelectedSpecificAmenity = 
-            selectingFromMap && 
-            selectedAmenitiesAmenities.includes(amenity) && 
-            selectedAmenitiesFromMap.includes(marker._amenityId.toString());
-          
-          const opacity = isSelectedSpecificAmenity || !selectingFromMap || amenities.length === 0 ? 1 : 0.4;
-          
-          marker.on('add', function() {
-            const element = this.getElement();
-            if (element) {
-              element.style.opacity = opacity;
-            }
-          });
-          
-          marker.on('mouseover', function(e) {
-            const element = e.target.getElement();
-            if (element) {
-              element.style.transform = element.style.transform.replace(/scale\([^)]*\)/, '') + ' scale(1.3)';
-              element.style.zIndex = 1000;
-              element.style.transition = 'transform 0.2s ease';
-              element.style.cursor = 'pointer';
-              element.style.opacity = 1;
-            }
-          });
-          
-          marker.on('mouseout', function(e) {
-            const element = e.target.getElement();
-            if (element) {
-              element.style.transform = element.style.transform.replace(/scale\([^)]*\)/, '');
-              element.style.zIndex = '';
-              element.style.opacity = isSelectedSpecificAmenity || !selectingFromMap || amenities.length === 0 ? 1 : 0.4;
-            }
-          });
-          
-          marker.on('click', function() {
-            const properties = feature.properties;
-            const amenityContent = getAmenityPopupContent(marker._amenityType, properties);
-            
-            const popup = L.popup()
-              .setLatLng(latlng)
-              .setContent(`<div>${amenityContent}</div>`)
-              .openOn(map);
-              
-            setTimeout(() => {
-              const showCatchmentButton = document.querySelector('.show-catchment-btn');
-              if (showCatchmentButton) {
-                showCatchmentButton.addEventListener('click', function() {
-                  const amenityType = this.getAttribute('data-amenity-type');
-                  const amenityId = this.getAttribute('data-amenity-id');
-                  showAmenityCatchment(amenityType, amenityId);
-                  popup.close();
-                });
-              }
-            }, 100);
-          });
-          
-          return marker;
-        },
-      });
-      amenitiesLayerGroup.addLayer(layer);
-    }
+  const filteredCenters = trainingCentersData.features.filter(feature => {
+    const hasSelectedAimLevel = selectedAimLevels.some(level => 
+      feature.properties[`AimLevel_${level}`] && 
+      parseInt(feature.properties[`AimLevel_${level}`]) > 0
+    );
+    
+    const hasSelectedSubject = selectedSubjects.some(subject => 
+      feature.properties[`${currentYear}_${subject.toLowerCase()}`] && 
+      parseInt(feature.properties[`${currentYear}_${subject.toLowerCase()}`]) > 0
+    );
+    
+    return hasSelectedAimLevel && hasSelectedSubject;
   });
-
-  if (amenitiesCheckbox.checked) {
-    amenitiesLayerGroup.addTo(map);
+  
+  amenitiesLayerGroup.clearLayers();
+  
+  if (filteredCenters.length > 0) {
+    const geoJsonLayer = L.geoJSON({
+      type: 'FeatureCollection',
+      features: filteredCenters
+    }, {
+      pointToLayer: (feature, latlng) => {
+        const icon = L.divIcon({ 
+          className: 'fa-icon', 
+          html: '<div class="pin"><i class="fas fa-university" style="color: grey;"></i></div>', 
+          iconSize: [60, 60], 
+          iconAnchor: [15, 15] 
+        });
+        
+        const marker = L.marker(latlng, { icon: icon });
+        
+        marker.on('click', function() {
+          const properties = feature.properties;
+          const popupContent = `
+            <strong>Provider:</strong> ${properties.Provider || 'Unknown'}<br>
+            <strong>ID:</strong> ${properties.id || 'Unknown'}<br>
+            <strong>Postcode:</strong> ${properties.postcode || 'Unknown'}<br>
+            ${getTrainingCenterDetails(properties, currentYear)}
+            <br><button class="show-catchment-btn" data-amenity-type="trainingCenters" data-amenity-id="${properties.id}">Show Journey Time Catchment</button>
+          `;
+          
+          L.popup()
+            .setLatLng(latlng)
+            .setContent(popupContent)
+            .openOn(map);
+            
+          setTimeout(() => {
+            const showCatchmentButton = document.querySelector('.show-catchment-btn');
+            if (showCatchmentButton) {
+              showCatchmentButton.addEventListener('click', function() {
+                const amenityId = this.getAttribute('data-amenity-id');
+                showAmenityCatchment('trainingCenters', amenityId);
+              });
+            }
+          }, 100);
+        });
+        
+        return marker;
+      }
+    });
+    
+    amenitiesLayerGroup.addLayer(geoJsonLayer);
+    
+    if (document.getElementById('amenitiesCheckbox')?.checked) {
+      amenitiesLayerGroup.addTo(map);
+    }
   }
 }
 
+function getTrainingCenterDetails(properties, currentYear) {
+  let details = '';
+  
+  const aimLevels = [];
+  if (properties.AimLevel_E > 0) aimLevels.push('Entry level');
+  if (properties.AimLevel_X > 0) aimLevels.push('X level');
+  if (properties.AimLevel_1 > 0) aimLevels.push('Level 1');
+  if (properties.AimLevel_2 > 0) aimLevels.push('Level 2');
+  if (properties.AimLevel_3 > 0) aimLevels.push('Level 3');
+  
+  if (aimLevels.length > 0) {
+    details += `<strong>Aim Levels:</strong> ${aimLevels.join(', ')}<br>`;
+  }
+  
+  const subjects = [];
+  const subjectTypes = ['digital', 'engineering', 'construction'];
+  
+  for (const subject of subjectTypes) {
+    const key = `${currentYear}_${subject}`;
+    if (properties[key] && parseInt(properties[key]) > 0) {
+      const yearFormatted = `20${currentYear.substring(0, 2)}-20${currentYear.substring(2, 4)}`;
+      subjects.push(`${subject.charAt(0).toUpperCase() + subject.slice(1)} (${yearFormatted})`);
+    }
+  }
+  
+  if (subjects.length > 0) {
+    details += `<strong>Subjects:</strong> ${subjects.join(', ')}`;
+  }
+  
+  return details;
+}
+
 function updateAmenitiesCatchmentLayer() {
-  // console.log('updateAmenitiesCatchmentLayer called');
-  if (!initialLoadComplete || !isPanelOpen("Journey Time Catchments - Amenities")) {
+  if (!initialLoadComplete || !isPanelOpen("Journey Time Catchments - Training Centres")) {
     return;
   }
 
-  const selectedYear = AmenitiesYear.value;
-  const selectedMode = AmenitiesMode.value;
+  const selectedSubjects = Array.from(
+    document.querySelectorAll('#subjectCheckboxesContainer input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
   
-  selectedAmenitiesAmenities = Array.from(AmenitiesPurpose)
-    .filter(checkbox => checkbox.checked)
-    .map(checkbox => checkbox.value);
-
-  if (!selectedYear || !selectedMode || selectedAmenitiesAmenities.length === 0) {
+  const selectedAimLevels = Array.from(
+    document.querySelectorAll('#aimlevelCheckboxesContainer input[type="checkbox"]:checked')
+  ).map(cb => cb.value);
+  
+  const selectedYearElem = document.querySelector('input[name="academic-year"]:checked');
+  const currentYear = selectedYearElem ? selectedYearElem.value : '2425';
+  
+  if (selectedSubjects.length === 0 || selectedAimLevels.length === 0) {
     if (AmenitiesCatchmentLayer) {
       map.removeLayer(AmenitiesCatchmentLayer);
       AmenitiesCatchmentLayer = null;
     }
-    drawSelectedAmenities([]);
+    drawSelectedTrainingCenters();
+    updateLegend();
+    updateFilterDropdown();
+    updateSummaryStatistics([]);
+    return;
+  }
+
+  const filteredCenters = trainingCentersData.features.filter(feature => {
+    const hasSelectedAimLevel = selectedAimLevels.some(level => 
+      feature.properties[`AimLevel_${level}`] && 
+      parseInt(feature.properties[`AimLevel_${level}`]) > 0
+    );
+    
+    const hasSelectedSubject = selectedSubjects.some(subject => 
+      feature.properties[`${currentYear}_${subject.toLowerCase()}`] && 
+      parseInt(feature.properties[`${currentYear}_${subject.toLowerCase()}`]) > 0
+    );
+    
+    return hasSelectedAimLevel && hasSelectedSubject;
+  });
+  
+  selectingFromMap = true;
+  selectedAmenitiesAmenities = ['trainingCenters'];
+  selectedAmenitiesFromMap = filteredCenters.map(feature => feature.properties.id.toString());
+  
+  if (selectedAmenitiesFromMap.length === 0) {
+    if (AmenitiesCatchmentLayer) {
+      map.removeLayer(AmenitiesCatchmentLayer);
+      AmenitiesCatchmentLayer = null;
+    }
+    drawSelectedTrainingCenters();
     updateLegend();
     updateFilterDropdown();
     updateSummaryStatistics([]);
@@ -2019,7 +1961,7 @@ function updateAmenitiesCatchmentLayer() {
 
   gridTimeMap = {};
 
-  const cacheKeys = selectedAmenitiesAmenities.map(amenity => `${selectedYear}_${amenity}`);  
+  const cacheKeys = selectedAmenitiesAmenities.map(amenity => `${amenity}`);  
   const fetchPromises = cacheKeys.map(cacheKey => {  
     if (!csvDataCache[cacheKey]) {
       const csvPath = `https://AmFa6.github.io/TAF_test/${cacheKey}_csv.csv`;
@@ -2030,43 +1972,41 @@ function updateAmenitiesCatchmentLayer() {
           
           let matchCount = 0;
           csvData.forEach(row => {
-            if (row.Mode === selectedMode) {
-              if (selectingFromMap && selectedAmenitiesFromMap.length > 0) {
-                let isMatch = false;
-                
-                const selectedId = selectedAmenitiesFromMap[0];
-                
-                const rowId = selectedMode === 'PT' ? row.Tracc_ID : row.NA_ID;
-                
-                if (selectedId === rowId) {
+            if (selectingFromMap && selectedAmenitiesFromMap.length > 0) {
+              let isMatch = false;
+              
+              const selectedId = selectedAmenitiesFromMap[0];
+              
+              const rowId = row.Tracc_ID;
+              
+              if (selectedId === rowId) {
+                isMatch = true;
+              }
+              else if (!isNaN(parseFloat(rowId)) && !isNaN(parseFloat(selectedId))) {
+                if (parseFloat(selectedId) === parseFloat(rowId)) {
                   isMatch = true;
                 }
-                else if (!isNaN(parseFloat(rowId)) && !isNaN(parseFloat(selectedId))) {
-                  if (parseFloat(selectedId) === parseFloat(rowId)) {
-                    isMatch = true;
-                  }
+              }
+              else if (rowId && rowId.includes('.') && 
+                        rowId.substring(0, rowId.indexOf('.')) === selectedId) {
+                isMatch = true;
+              }
+              
+              if (isMatch) {
+                if (matchCount < 3) {
+                  matchCount++;
                 }
-                else if (rowId && rowId.includes('.') && 
-                         rowId.substring(0, rowId.indexOf('.')) === selectedId) {
-                  isMatch = true;
-                }
-                
-                if (isMatch) {
-                  if (matchCount < 3) {
-                    matchCount++;
-                  }
-                  const coreid = row.OriginName;
-                  const time = parseFloat(row.Time);
-                  if (!gridTimeMap[coreid] || time < gridTimeMap[coreid]) {
-                    gridTimeMap[coreid] = time;
-                  }
-                }
-              } else {
                 const coreid = row.OriginName;
                 const time = parseFloat(row.Time);
                 if (!gridTimeMap[coreid] || time < gridTimeMap[coreid]) {
                   gridTimeMap[coreid] = time;
                 }
+              }
+            } else {
+              const coreid = row.OriginName;
+              const time = parseFloat(row.Time);
+              if (!gridTimeMap[coreid] || time < gridTimeMap[coreid]) {
+                gridTimeMap[coreid] = time;
               }
             }
           });
@@ -2084,7 +2024,7 @@ function updateAmenitiesCatchmentLayer() {
             
             const selectedId = selectedAmenitiesFromMap[0];
             
-            const rowId = selectedMode === 'PT' ? row.Tracc_ID : row.NA_ID;
+            const rowId = row.Tracc_ID;
             
             if (selectedId === rowId) {
               isMatch = true;
@@ -2162,9 +2102,9 @@ function updateAmenitiesCatchmentLayer() {
 
     if (selectingFromMap) {
       const selectedAmenityTypes = selectedAmenitiesAmenities;
-      drawSelectedAmenities(selectedAmenityTypes);
+      drawSelectedTrainingCentres(selectedAmenityTypes);
     } else {
-      drawSelectedAmenities(selectedAmenitiesAmenities);
+      drawSelectedTrainingCentres(selectedAmenitiesAmenities);
       updateAmenitiesDropdownLabel();
     }
 
@@ -2279,14 +2219,6 @@ function updateFilterDropdown() {
     filterTypeDropdown.appendChild(optionElement);
   });
   
-  if (userLayers && userLayers.length > 0) {
-    userLayers.forEach(userLayer => {
-      const option = document.createElement('option');
-      option.value = `UserLayer_${userLayer.id}`;
-      option.textContent = `User Layer - ${userLayer.name}`;
-      filterTypeDropdown.appendChild(option);
-    });
-  }
   
   if ((currentValue === 'Range' && !(AmenitiesCatchmentLayer)) ||
       !Array.from(filterTypeDropdown.options).some(opt => opt.value === currentValue)) {
@@ -2366,59 +2298,7 @@ function updateFilterValues() {
   let options = [];
   let filterFieldSelector = null;
 
-  if (currentFilterType.startsWith('UserLayer_')) {
-    const layerId = currentFilterType.split('UserLayer_')[1];
-    const userLayer = userLayers.find(l => l.id === layerId);
-    
-    if (userLayer) {
-      const fieldSelectorDiv = document.createElement('div');
-      fieldSelectorDiv.className = 'filter-field-selector';
-      fieldSelectorDiv.style.marginBottom = '10px';
-      
-      const fieldLabel = document.createElement('label');
-      fieldLabel.textContent = 'Filter by field:';
-      fieldLabel.style.display = 'block';
-      fieldLabel.style.marginBottom = '5px';
-      fieldSelectorDiv.appendChild(fieldLabel);
-      
-      filterFieldSelector = document.createElement('select');
-      filterFieldSelector.id = 'user-layer-field-selector';
-      filterFieldSelector.className = 'small-font';
-      filterFieldSelector.style.width = '100%';
-      
-      const defaultOption = document.createElement('option');
-      defaultOption.value = '';
-      defaultOption.textContent = 'All features';
-      filterFieldSelector.appendChild(defaultOption);
-      
-      userLayer.fieldNames.forEach(fieldName => {
-        const option = document.createElement('option');
-        option.value = fieldName;
-        option.textContent = fieldName;
-        filterFieldSelector.appendChild(option);
-      });
-      
-      if (previousFilterSelections[`UserLayer_${layerId}_field`]) {
-        filterFieldSelector.value = previousFilterSelections[`UserLayer_${layerId}_field`];
-      }
-      
-      fieldSelectorDiv.appendChild(filterFieldSelector);
-      filterValueContainer.appendChild(fieldSelectorDiv);
-      
-      filterFieldSelector.addEventListener('change', function() {
-        previousFilterSelections[`UserLayer_${layerId}_field`] = this.value;
-        populateUserLayerFilterValues(userLayer, this.value);
-        if (document.getElementById('highlightAreaCheckbox').checked) {
-          highlightSelectedArea();
-        }
-      });
-      
-      populateUserLayerFilterValues(userLayer, filterFieldSelector.value);
-      isUpdatingFilterValues = false;
-      return;
-    }
-  } else if (currentFilterType === 'Range') {
-    const selectedYear = AmenitiesYear.value;
+  if (currentFilterType === 'Range') {
     if (AmenitiesCatchmentLayer) {
       options = [
         '0-5', '5-10', '10-15', '15-20', '20-25', '25-30', '>30'
@@ -2593,8 +2473,7 @@ function displayEmptyStatistics() {
     'avg-car-availability', 'min-car-availability', 'max-car-availability',
     'total-growth-pop', 'min-growth-pop', 'max-growth-pop',
     'avg-score', 'min-score', 'max-score',
-    'avg-percentile', 'min-percentile', 'max-percentile',
-    'metric-row-1', 'metric-row-2'
+    'avg-percentile', 'min-percentile', 'max-percentile', 'metric-row-2'
   ];
   
   statisticIds.forEach(id => {
@@ -2620,131 +2499,7 @@ function applyFilters(features) {
     }
   }
   
-  if (filterType.startsWith('UserLayer_')) {
-    const layerId = filterType.split('UserLayer_')[1];
-    const userLayer = userLayers.find(l => l.id === layerId);
-    
-    if (userLayer) {
-      const fieldSelector = document.getElementById('user-layer-field-selector');
-      if (fieldSelector && fieldSelector.value) {
-        const selectedField = fieldSelector.value;
-        const filterCheckboxes = document.querySelectorAll('.filter-value-checkbox:checked');
-        const selectedValues = Array.from(filterCheckboxes).map(cb => cb.value);
-        
-        if (selectedValues.length === 0) return [];
-        
-        const combinedFeatures = [];
-        
-        filteredFeatures.forEach(feature => {
-          const gridPolygon = turf.polygon(feature.geometry.coordinates);
-          
-          for (const userFeature of userLayer.originalData.features) {
-            if (selectedValues.includes(String(userFeature.properties[selectedField]))) {
-              if (userFeature.geometry.type === 'Polygon') {
-                const poly = turf.polygon(userFeature.geometry.coordinates);
-                const gridCentre = turf.center(gridPolygon);
-                if (turf.booleanPointInPolygon(gridCentre, poly)) {
-                  combinedFeatures.push(feature);
-                  break;
-                }
-              } 
-              else if (userFeature.geometry.type === 'MultiPolygon') {
-                const gridCentre = turf.center(gridPolygon);
-                const isInside = userFeature.geometry.coordinates.some(coords => {
-                  const poly = turf.polygon(coords);
-                  return turf.booleanPointInPolygon(gridCentre, poly);
-                });
-                
-                if (isInside) {
-                  combinedFeatures.push(feature);
-                  break;
-                }
-              }
-              else if (userFeature.geometry.type === 'Point') {
-                const point = turf.point(userFeature.geometry.coordinates);
-                if (turf.booleanPointInPolygon(point, gridPolygon)) {
-                  combinedFeatures.push(feature);
-                  break;
-                }
-              }
-              else if (userFeature.geometry.type === 'LineString') {
-                const line = turf.lineString(userFeature.geometry.coordinates);
-                if (turf.booleanIntersects(line, gridPolygon)) {
-                  combinedFeatures.push(feature);
-                  break;
-                }
-              }
-              else if (userFeature.geometry.type === 'MultiLineString') {
-                const isIntersecting = userFeature.geometry.coordinates.some(coords => {
-                  const line = turf.lineString(coords);
-                  return turf.booleanIntersects(line, gridPolygon);
-                });
-                if (isIntersecting) {
-                  combinedFeatures.push(feature);
-                  break;
-                }
-              }
-            }
-          }
-        });
-        return combinedFeatures;
-      } else {
-        const userLayerFeatures = userLayer.originalData.features;
-        const combinedFeatures = [];
-        for (const feature of filteredFeatures) {
-          const gridPolygon = turf.polygon(feature.geometry.coordinates);
-          for (const userFeature of userLayerFeatures) {
-            if (userFeature.geometry.type === 'Polygon') {
-              const poly = turf.polygon(userFeature.geometry.coordinates);
-              const gridCentre = turf.center(gridPolygon);
-              if (turf.booleanPointInPolygon(gridCentre, poly)) {
-                combinedFeatures.push(feature);
-                break;
-              }
-            } 
-            else if (userFeature.geometry.type === 'MultiPolygon') {
-              const gridCentre = turf.center(gridPolygon);
-              const isInside = userFeature.geometry.coordinates.some(coords => {
-                const poly = turf.polygon(coords);
-                return turf.booleanPointInPolygon(gridCentre, poly);
-              });
-              if (isInside) {
-                combinedFeatures.push(feature);
-                break;
-              }
-            }
-            else if (userFeature.geometry.type === 'Point') {
-              const point = turf.point(userFeature.geometry.coordinates);
-              if (turf.booleanPointInPolygon(point, gridPolygon)) {
-                combinedFeatures.push(feature);
-                break;
-              }
-            }
-            else if (userFeature.geometry.type === 'LineString') {
-              const line = turf.lineString(userFeature.geometry.coordinates);
-              if (turf.booleanIntersects(line, gridPolygon)) {
-                combinedFeatures.push(feature);
-                break;
-              }
-            }
-            else if (userFeature.geometry.type === 'MultiLineString') {
-              const isIntersecting = userFeature.geometry.coordinates.some(coords => {
-                const line = turf.lineString(coords);
-                return turf.booleanIntersects(line, gridPolygon);
-              });
-              
-              if (isIntersecting) {
-                combinedFeatures.push(feature);
-                break;
-              }
-            }
-          }
-        }
-        return combinedFeatures;
-      }
-    }
-  }
-  else if (filterType === 'Range') {
+  if (filterType === 'Range') {
     const filterValueContainer = document.getElementById('filterValueContainer');
     if (!filterValueContainer) return filteredFeatures;
     
@@ -2804,39 +2559,7 @@ function applyGeographicFilter(features, filterType, filterValue) {
   const getPolygonForFilter = () => {
     let polygon = null;
 
-    if (filterType.startsWith('UserLayer_')) {
-      const layerId = filterType.split('UserLayer_')[1];
-      const userLayer = userLayers.find(l => l.id === layerId);
-      
-      if (userLayer) {
-        const fieldSelector = document.getElementById('user-layer-field-selector');
-        if (fieldSelector && fieldSelector.value) {
-          const selectedField = fieldSelector.value;
-          
-          const matchingFeatures = userLayer.originalData.features.filter(feature => 
-            feature.properties[selectedField] === filterValue
-          );
-          
-          polygon = matchingFeatures.reduce((acc, feature) => {
-            const poly = {
-              type: 'Feature',
-              geometry: feature.geometry,
-              properties: feature.properties
-            };
-            return acc ? turf.union(acc, poly) : poly;
-          }, null);
-        } else {
-          polygon = userLayer.originalData.features.reduce((acc, feature) => {
-            const poly = {
-              type: 'Feature',
-              geometry: feature.geometry,
-              properties: feature.properties
-            };
-            return acc ? turf.union(acc, poly) : poly;
-          }, null);
-        }
-      }
-    } else if (filterType === 'Ward') {
+    if (filterType === 'Ward') {
       if (!wardBoundariesLayer) return null;
 
       const wardLayers = wardBoundariesLayer.getLayers().filter(layer =>
@@ -3001,7 +2724,6 @@ function updateStatisticsUI(stats) {
   document.getElementById('min-growth-pop').textContent = formatValue(stats.mingrowthpop, 10);
   document.getElementById('max-growth-pop').textContent = formatValue(stats.maxgrowthpop, 10);
 
-  document.getElementById('metric-row-1').textContent = stats.metricRow1 || '-';
   document.getElementById('metric-row-2').textContent = stats.metricRow2 || '-';
   
   if (stats.isTimeLayer) {
@@ -3057,15 +2779,6 @@ function getCurrentFeatures() {
     sourceFeatures = grid.features;
   }
   
-  if (filterType.startsWith('UserLayer_')) {
-    const layerId = filterType.split('UserLayer_')[1];
-    const userLayer = userLayers.find(l => l.id === layerId);
-    
-    if (userLayer) {
-      return applyFilters(sourceFeatures);
-    }
-  } 
-  
   return sourceFeatures;
 }
 
@@ -3097,37 +2810,7 @@ function highlightSelectedArea() {
 
   let selectedPolygons = [];
 
-  if (filterType.startsWith('UserLayer_')) {
-    const layerId = filterType.split('UserLayer_')[1];
-    const userLayer = userLayers.find(l => l.id === layerId);
-    
-    if (userLayer) {
-      const fieldSelector = document.getElementById('user-layer-field-selector');
-      if (fieldSelector && fieldSelector.value) {
-        const selectedField = fieldSelector.value;
-        
-        const matchingFeatures = userLayer.originalData.features.filter(feature => 
-          selectedValues.includes(String(feature.properties[selectedField]))
-        );
-        
-        selectedPolygons = matchingFeatures.map(feature => {
-          return {
-            type: 'Feature',
-            geometry: feature.geometry,
-            properties: feature.properties
-          };
-        });
-      } else {
-        selectedPolygons = userLayer.originalData.features.map(feature => {
-          return {
-            type: 'Feature',
-            geometry: feature.geometry,
-            properties: feature.properties
-          };
-        });
-      }
-    }
-  } else if (filterType === 'Ward') {
+  if (filterType === 'Ward') {
     if (!wardBoundariesLayer) return;
     
     selectedValues.forEach(filterValue => {
