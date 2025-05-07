@@ -158,10 +158,10 @@ const filterTypeDropdown = document.getElementById('filterTypeDropdown');
 const filterValueDropdown = document.getElementById('filterValueDropdown');
 
 Promise.all([
-  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_1of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_2of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_3of4.geojson').then(response => response.json()),
-  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_tracid_4of4.geojson').then(response => response.json())
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_traccid_1of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_traccid_2of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_traccid_3of4.geojson').then(response => response.json()),
+  fetch('https://AmFa6.github.io/TrainingCentres/grid-socioeco-lep_traccid_4of4.geojson').then(response => response.json())
 ])
 .then(dataArray => {
   const combinedData = {
