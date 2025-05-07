@@ -201,11 +201,11 @@ fetch('https://AmFa6.github.io/TAF_test/GrowthZones.geojson')
     }).addTo(map);
   })
 
-fetch(trainingCentersFile)
+fetch(trainingCentresFile)
 .then(response => response.json())
 .then(data => {
-  trainingCentersData = data;
-  amenityLayers['trainingCenters'] = data;
+  trainingCentresData = data;
+  amenityLayers['trainingCentres'] = data;
   drawSelectedTrainingCentres();
 });
 
@@ -305,7 +305,7 @@ fetch('https://AmFa6.github.io/TAF_test/simplified_network.geojson')
 AmenitiesOpacity.value = "None";
 AmenitiesOutline.value = "None";
 
-let trainingCentersData = null;
+let trainingCentresData = null;
 let opacityAmenitiesOrder = 'low-to-high';
 let outlineAmenitiesOrder = 'low-to-high';
 let isInverseAmenitiesOpacity = false;
@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     yearRadios.forEach(radio => {
       radio.addEventListener('change', () => {
         updateYearDropdownLabel();
-        drawSelectedTrainingCenters();
+        drawSelectedTrainingCentres();
         updateAmenitiesCatchmentLayer();
       });
     });
@@ -597,7 +597,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     subjectCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
         updateSubjectDropdownLabel();
-        drawSelectedTrainingCenters();
+        drawSelectedTrainingCentres();
         updateAmenitiesCatchmentLayer();
       });
     });
@@ -608,7 +608,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     aimLevelCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
         updateAimLevelDropdownLabel();
-        drawSelectedTrainingCenters();
+        drawSelectedTrainingCentres();
         updateAmenitiesCatchmentLayer();
       });
     });
@@ -1783,7 +1783,7 @@ function showAmenityCatchment(amenityType, amenityId) {
   }
 }
 
-function drawSelectedTrainingCenters() {
+function drawSelectedTrainingCentres() {
   const selectedSubjects = Array.from(
     document.querySelectorAll('#subjectCheckboxesContainer input[type="checkbox"]:checked')
   ).map(cb => cb.value);
@@ -1800,7 +1800,7 @@ function drawSelectedTrainingCenters() {
     return;
   }
 
-  const filteredCenters = trainingCentersData.features.filter(feature => {
+  const filteredCentres = trainingCentresData.features.filter(feature => {
     const hasSelectedAimLevel = selectedAimLevels.some(level => 
       feature.properties[`AimLevel_${level}`] && 
       parseInt(feature.properties[`AimLevel_${level}`]) > 0
@@ -1816,10 +1816,10 @@ function drawSelectedTrainingCenters() {
   
   amenitiesLayerGroup.clearLayers();
   
-  if (filteredCenters.length > 0) {
+  if (filteredCentres.length > 0) {
     const geoJsonLayer = L.geoJSON({
       type: 'FeatureCollection',
-      features: filteredCenters
+      features: filteredCentres
     }, {
       pointToLayer: (feature, latlng) => {
         const icon = L.divIcon({ 
@@ -1837,8 +1837,8 @@ function drawSelectedTrainingCenters() {
             <strong>Provider:</strong> ${properties.Provider || 'Unknown'}<br>
             <strong>ID:</strong> ${properties.id || 'Unknown'}<br>
             <strong>Postcode:</strong> ${properties.postcode || 'Unknown'}<br>
-            ${getTrainingCenterDetails(properties, currentYear)}
-            <br><button class="show-catchment-btn" data-amenity-type="trainingCenters" data-amenity-id="${properties.id}">Show Journey Time Catchment</button>
+            ${getTrainingcentreDetails(properties, currentYear)}
+            <br><button class="show-catchment-btn" data-amenity-type="trainingCentres" data-amenity-id="${properties.id}">Show Journey Time Catchment</button>
           `;
           
           L.popup()
@@ -1851,7 +1851,7 @@ function drawSelectedTrainingCenters() {
             if (showCatchmentButton) {
               showCatchmentButton.addEventListener('click', function() {
                 const amenityId = this.getAttribute('data-amenity-id');
-                showAmenityCatchment('trainingCenters', amenityId);
+                showAmenityCatchment('trainingCentres', amenityId);
               });
             }
           }, 100);
@@ -1869,7 +1869,7 @@ function drawSelectedTrainingCenters() {
   }
 }
 
-function getTrainingCenterDetails(properties, currentYear) {
+function getTrainingcentreDetails(properties, currentYear) {
   let details = '';
   
   const aimLevels = [];
@@ -1922,14 +1922,14 @@ function updateAmenitiesCatchmentLayer() {
       map.removeLayer(AmenitiesCatchmentLayer);
       AmenitiesCatchmentLayer = null;
     }
-    drawSelectedTrainingCenters();
+    drawSelectedTrainingCentres();
     updateLegend();
     updateFilterDropdown();
     updateSummaryStatistics([]);
     return;
   }
 
-  const filteredCenters = trainingCentersData.features.filter(feature => {
+  const filteredCentres = trainingCentresData.features.filter(feature => {
     const hasSelectedAimLevel = selectedAimLevels.some(level => 
       feature.properties[`AimLevel_${level}`] && 
       parseInt(feature.properties[`AimLevel_${level}`]) > 0
@@ -1944,15 +1944,15 @@ function updateAmenitiesCatchmentLayer() {
   });
   
   selectingFromMap = true;
-  selectedAmenitiesAmenities = ['trainingCenters'];
-  selectedAmenitiesFromMap = filteredCenters.map(feature => feature.properties.id.toString());
+  selectedAmenitiesAmenities = ['trainingCentres'];
+  selectedAmenitiesFromMap = filteredCentres.map(feature => feature.properties.id.toString());
   
   if (selectedAmenitiesFromMap.length === 0) {
     if (AmenitiesCatchmentLayer) {
       map.removeLayer(AmenitiesCatchmentLayer);
       AmenitiesCatchmentLayer = null;
     }
-    drawSelectedTrainingCenters();
+    drawSelectedTrainingCentres();
     updateLegend();
     updateFilterDropdown();
     updateSummaryStatistics([]);
@@ -1964,7 +1964,7 @@ function updateAmenitiesCatchmentLayer() {
   const cacheKeys = selectedAmenitiesAmenities.map(amenity => `${amenity}`);  
   const fetchPromises = cacheKeys.map(cacheKey => {  
     if (!csvDataCache[cacheKey]) {
-      const csvPath = `https://AmFa6.github.io/TAF_test/${cacheKey}_csv.csv`;
+      const csvPath = `https://AmFa6.github.io/TrainingCentres/${cacheKey}_csv.csv`;
       return fetch(csvPath)
         .then(response => response.text())
         .then(csvText => {
@@ -2618,14 +2618,10 @@ function applyGeographicFilter(features, filterType, filterValue) {
   return features.filter(feature => {
     const gridPolygon = turf.polygon(feature.geometry.coordinates);
     
-    let centerPoint;
-    if (feature.properties && feature.properties.COREID === 'NS00493' && feature.properties._adjustedCenter) {
-      centerPoint = turf.point(feature.properties._adjustedCenter);
-    } else {
-      centerPoint = turf.center(gridPolygon);
-    }
+    let centrePoint;
+    centrePoint = turf.center(gridPolygon);
     
-    return turf.booleanPointInPolygon(centerPoint, polygon);
+    return turf.booleanPointInPolygon(centrePoint, polygon);
   });
 }
 
