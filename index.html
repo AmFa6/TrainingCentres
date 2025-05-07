@@ -564,43 +564,38 @@
   <div id="map"></div>
   <div id="panel-container">
     <div id="Amenities" class="panel">
-      <button class="panel-header">Journey Time Catchments - Amenities</button>
+      <button class="panel-header">Journey Time Catchments - Training Centres</button>
       <div id="panel-content">
-        <label for="yearAmenitiesDropdown" class="large-font">Year:</label>
-        <select id="yearAmenitiesDropdown" class="medium-font">
-          <option value="2024">2024</option>
-        </select>
-        <br>
-        <label for="modeAmenitiesDropdown" class="large-font">Mode of Travel:</label>
-        <select id="modeAmenitiesDropdown" class="medium-font">
-          <option value="Wa">Walk</option>
-          <option value="Cy">Cycle</option>
-          <option value="PT">Public Transport</option>
-          <option value="Ca">Car</option>
-        </select>
-        <br>
-        <label class="large-font">Amenities:</label>
+        <label class="large-font">Academic Year:</label>
         <div class="dropdown">
-          <button type="button" class="dropdown-toggle" id="amenitiesDropdown">\u00A0</button>
-          <div class="dropdown-menu" id="amenitiesCheckboxesContainer">
-            <label class="checkbox-label"><input type="checkbox" value="PriSch"> <span>Primary School</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="SecSch"> <span>Secondary School</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="FurEd"> <span>Further Education</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="Em500"> <span>Employment (500+ jobs)</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="Em5000"> <span>Employment (5000+ jobs)</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="StrEmp"> <span>Strategic Employment</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="CitCtr"> <span>City Centre</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="MajCtr"> <span>Major Centre</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="DisCtr"> <span>District Centre</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="GP"> <span>General Practice</span></label>
-            <label class="checkbox-label"><input type="checkbox" value="Hos"> <span>Hospital</span></label>
+          <button type="button" class="dropdown-toggle" id="yearDropdown">2023/24</button>
+          <div class="dropdown-menu" id="yearContainer">
+            <label class="checkbox-label"><input type="radio" name="academic-year" value="2122"> <span>2021/22</span></label>
+            <label class="checkbox-label"><input type="radio" name="academic-year" value="2223"> <span>2022/23</span></label>
+            <label class="checkbox-label"><input type="radio" name="academic-year" value="2324" checked> <span>2023/24</span></label>
+            <label class="checkbox-label"><input type="radio" name="academic-year" value="2425"> <span>2024/25</span></label>
           </div>
         </div>
-<!--        <div class="field-container">
-          <div class="button-container">
-            <button id="selectAmenitiesFromMap" class="large-button">Select from Map</button>
+        <label class="large-font">Subject:</label>
+        <div class="dropdown">
+          <button type="button" class="dropdown-toggle" id="subjectDropdown">\u00A0</button>
+          <div class="dropdown-menu" id="subjectCheckboxesContainer">
+            <label class="checkbox-label"><input type="checkbox" value="Digital"> <span>Digital</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="Engineering"> <span>Engineering</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="Construction"> <span>Construction</span></label>
           </div>
-        </div>-->
+        </div>
+        <label class="large-font">Aim Level:</label>
+        <div class="dropdown">
+          <button type="button" class="dropdown-toggle" id="aimlevelDropdown">\u00A0</button>
+          <div class="dropdown-menu" id="aimlevelCheckboxesContainer">
+            <label class="checkbox-label"><input type="checkbox" value="E"> <span>E</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="X"> <span>X</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="1"> <span>1</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="2"> <span>2</span></label>
+            <label class="checkbox-label"><input type="checkbox" value="3"> <span>3</span></label>
+          </div>
+        </div>
         <button type="button" class="collapsible">Settings</button>
         <div class="collapsible-content">
           <label for="opacityFieldAmenitiesDropdown" class="medium-font">Link Grid Transparency to:</label>
@@ -747,14 +742,7 @@
         </thead>
         <tbody>
           <tr>
-            <td id="metric-row-1">Score</td>
-            <td id="avg-score"></td>
-            <td>-</td>
-            <td id="min-score"></td>
-            <td id="max-score"></td>
-          </tr>
-          <tr>
-            <td id="metric-row-2">Score Percentile</td>
+            <td id="metric-row-2">Journey Time (mins)</td>
             <td id="avg-percentile"></td>
             <td>-</td>
             <td id="min-percentile"></td>
@@ -817,41 +805,11 @@
     </div>
   </template>
   <script>
-    const ScoresFiles = [
-      { year: '2024', path: 'https://AmFa6.github.io/TAF_test/2024_connectscore.csv' },
-      { year: '2023', path: 'https://AmFa6.github.io/TAF_test/2023_connectscore.csv' },
-      { year: '2022', path: 'https://AmFa6.github.io/TAF_test/2022_connectscore.csv' },
-      { year: '2019', path: 'https://AmFa6.github.io/TAF_test/2019_connectscore.csv' },
-      { year: '2023-2024', path: 'https://AmFa6.github.io/TAF_test/2023-2024_connectscore.csv' },
-      { year: '2019-2024', path: 'https://AmFa6.github.io/TAF_test/2019-2024_connectscore.csv' },
-      { year: '2022-2023', path: 'https://AmFa6.github.io/TAF_test/2022-2023_connectscore.csv' },
-      { year: '2019-2023', path: 'https://AmFa6.github.io/TAF_test/2019-2023_connectscore.csv' }, 
-      { year: '2019-2022', path: 'https://AmFa6.github.io/TAF_test/2019-2022_connectscore.csv' }
-    ];
-    const AmenitiesFiles = [
-      { type: 'PriSch', path: 'https://AmFa6.github.io/TAF_test/PriSch.geojson' },
-      { type: 'SecSch', path: 'https://AmFa6.github.io/TAF_test/SecSch.geojson' },
-      { type: 'FurEd', path: 'https://AmFa6.github.io/TAF_test/FurEd.geojson' },
-      { type: 'Em500', path: 'https://AmFa6.github.io/TAF_test/Em500.geojson' },
-      { type: 'Em5000', path: 'https://AmFa6.github.io/TAF_test/Em5000.geojson' },
-      { type: 'StrEmp', path: 'https://AmFa6.github.io/TAF_test/StrEmp.geojson' },
-      { type: 'CitCtr', path: 'https://AmFa6.github.io/TAF_test/CitCtr.geojson' },
-      { type: 'MajCtr', path: 'https://AmFa6.github.io/TAF_test/MajCtr.geojson' },
-      { type: 'DisCtr', path: 'https://AmFa6.github.io/TAF_test/DisCtr.geojson' },
-      { type: 'GP', path: 'https://AmFa6.github.io/TAF_test/GP.geojson' },
-      { type: 'Hos', path: 'https://AmFa6.github.io/TAF_test/Hos.geojson' }
-    ];
+    const trainingCentersFile = 'https://AmFa6.github.io/TrainingCentres/training_centres_detailed.geojson';
     const InfrastructureFiles = [
       { type: 'BusLines', path: 'https://AmFa6.github.io/TAF_test/lines.geojson' },
       { type: 'BusStops', path: 'https://AmFa6.github.io/TAF_test/stops.geojson' }
     ];
-    const purposeToAmenitiesMap = {
-      Edu: ['PriSch', 'SecSch', 'FurEd'],
-      Emp: ['Em500', 'Em5000', 'StrEmp'],
-      HSt: ['CitCtr', 'MajCtr', 'DisCtr'],
-      Hth: ['GP', 'Hos'],
-      All: ['PriSch', 'SecSch', 'FurEd', 'Em500', 'Em5000', 'StrEmp', 'CitCtr', 'MajCtr', 'DisCtr', 'GP', 'Hos']
-    };
     const ladCodes = ['E06000022', 'E06000023', 'E06000024', 'E06000025'];
   </script>
   <script src="main.js"></script>
